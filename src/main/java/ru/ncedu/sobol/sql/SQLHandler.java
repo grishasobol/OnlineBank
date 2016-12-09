@@ -109,6 +109,15 @@ public class SQLHandler {
         }
     }
 
+    public boolean isEmployee(int user_id){
+        try {
+            EmployeeService.getByUser(user_id);
+        } catch (Exception e){
+            return false;
+        }
+        return true;
+    }
+
     public boolean isSubordinate(int employee_id){
         List<Employee> subEmployees = EmployeeService.getAllSubordinates(my_employee_id);
         for(Employee employee : subEmployees){

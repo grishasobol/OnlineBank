@@ -17,27 +17,28 @@ public class RequestParser {
     private final static String CONFIRM_ACCESS = "confirmaccess";
     private final static String RESPONSE = "response";
     private final static String SUCCESSFUL_OPERATION = "The operation done successfully";
+    private final static String NOT_CONFIRMED = "notconfirmed";
     private final static String SEPARATOR = ";";
-    private final static int USER_ACCESSES = 92;
+    private final static int DEFAULT_USER_ACCESSES = 92;
 
-    int user_id;
+    int my_user_id;
     Access accesses = null;
     SQLHandler sqlHandler;
     SecureRandom secureRandom;
-    String lastCheckMessage = null;
 
-    enum Operations { BAD_OPERATION, CONFIRMATION, INFO_USER, INFO_MY, INFO_ALL, ADD_EMPLOYEE, ADD_USER, ADD_MONEY,
-        DELETE_ALL, DELETE_MY, DELETE_USER}
 
     Operations lastOperation = null;
+    String lastCheckMessage = null;
+    String lastRequest = null;
 
-    public RequestParser(int user_id) {
-        this.user_id = user_id;
-        sqlHandler = new SQLHandler(user_id);
+
+    public RequestParser(int my_user_id) {
+        this.my_user_id = my_user_id;
+        sqlHandler = new SQLHandler(my_user_id);
         if(sqlHandler.iamEmployee()){
-            accesses = new Access(sqlHandler.getEmployee(user_id).getAccesses());
+            accesses = new Access(sqlHandler.getEmployee(my_user_id).getAccesses());
         } else {
-            accesses = new Access(USER_ACCESSES);
+            accesses = new Access(DEFAULT_USER_ACCESSES);
         }
         secureRandom = new SecureRandom();
     }
@@ -89,123 +90,125 @@ public class RequestParser {
     }
 
     public String parse(String request){
+        String result = null;
+        String[] tokens = request.split(" ");
+        Operations operation = parseRequestToOperation(tokens);
         try {
-            String[] tokens = request.split(" ");
-            Operations operation = parseRequestToOperation(tokens);
             switch (operation) {
                 case BAD_OPERATION:
-                    return WRONG_REQUEST;
+                    result = WRONG_REQUEST;
+                    break;
                 case CONFIRMATION:
+                    if(lastOperation == null || lastRequest == null || lastCheckMessage == null){
+                        result = WRONG_REQUEST;
+                        break;
+                    }
+                    String signature = tokens[1];
+                    int user_id = Integer.parseInt(tokens[2]);
+                    if(!checkSignature(signature, user_id)) {
+                        result = NOT_CONFIRMED;
+                        break;
+                    }
+                    Access access = new Access(sqlHandler.getEmployee(user_id).getAccesses());
+                    if(){
+
+                    }
+
+                    tokens = lastRequest.split(" ");
                     switch (lastOperation) {
                         case BAD_OPERATION:
-                            return WRONG_REQUEST;
+                            result = WRONG_REQUEST;
+                            break;
                         case CONFIRMATION:
-                            return WRONG_REQUEST;
+                            result = WRONG_REQUEST;
+                            break;
                         case INFO_USER:
-                            return getUserInfo(sqlHandler.getUser(Integer.parseInt(tokens[2])));
+                            result = getUserInfo(sqlHandler.getUser(Integer.parseInt(tokens[2])));
+                            break;
                         case INFO_MY:
-                            return WRONG_REQUEST;
+                            result = WRONG_REQUEST;
+                            break;
                         case INFO_ALL:
                             List<User> allUsers = sqlHandler.getAllUsers();
                             String response = "";
                             for (User user : allUsers) {
                                 response += getUserInfo(user) + "\n";
                             }
-                            return response;
+                            result = response;
+                            break;
                         case ADD_EMPLOYEE:
                             sqlHandler.addEmployee(sqlHandler.getMy_employee_id(), Integer.parseInt(tokens[2]),
                                     Integer.parseInt(tokens[3]), Double.parseDouble(tokens[4]));
-                            return SUCCESSFUL_OPERATION;
+                            result = SUCCESSFUL_OPERATION;
+                            break;
                         case ADD_USER:
                             sqlHandler.addUser(tokens[2], tokens[3], 2, tokens[4]);
-                            return SUCCESSFUL_OPERATION;
+                            result = SUCCESSFUL_OPERATION;
+                            break;
                         case ADD_MONEY:
-                            return WRONG_REQUEST;
+                            result = WRONG_REQUEST;
+                            break;
                         case DELETE_ALL:
                             sqlHandler.deleteAll();
-                            return SUCCESSFUL_OPERATION;
+                            result = SUCCESSFUL_OPERATION;
+                            break;
                         case DELETE_MY:
-                            sqlHandler.deleteUser(user_id);
-                            return SUCCESSFUL_OPERATION;
+                            sqlHandler.deleteUser(my_user_id);
+                            result = SUCCESSFUL_OPERATION;
+                            break;
                         case DELETE_USER:
                             sqlHandler.deleteUser(Integer.parseInt(tokens[2]));
-                            return SUCCESSFUL_OPERATION;
+                            result = SUCCESSFUL_OPERATION;
+                            break;
+                        default:
+                            result = WRONG_REQUEST;
+                            break;
                     }
                     break;
                 case INFO_USER:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
                 case INFO_MY:
-                    return getUserInfo(sqlHandler.getUser(this.user_id));
+                    result = getUserInfo(sqlHandler.getUser(this.my_user_id));
+                    break;
                 case INFO_ALL:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
                 case ADD_EMPLOYEE:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
                 case ADD_USER:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
                 case ADD_MONEY:
                     sqlHandler.addMoney(Integer.parseInt(tokens[2]), Double.parseDouble(tokens[3]));
+                    break;
                 case DELETE_ALL:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
                 case DELETE_MY:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
                 case DELETE_USER:
-                    return confirmMessage(request);
+                    result = confirmMessage(request);
+                    break;
+                default:
+                    result = WRONG_REQUEST;
+                    break;
             }
         } catch (Exception e){
             e.printStackTrace();
-            return WRONG_REQUEST;
+            result = WRONG_REQUEST;
         }
-        try {
-            switch (tokens[0]) {
-                case "info":
-                    switch (tokens[1]){
-                        case "user": {
-                            User user = sqlHandler.getUser(Integer.parseInt(tokens[2]));
-                            return getUserInfo(user);
-                        }
-                        case "my":
-                            return  getUserInfo(sqlHandler.getUser(this.user_id));
-                        case "all":
-                            List<User> allUsers = sqlHandler.getAllUsers();
-                            String response = "";
-                            for(User user : allUsers){
-                                response += getUserInfo(user) + "\n";
-                            }
-                            return response;
-                        default:
-                            return WRONG_REQUEST;
-                    }
-                case "add":
-                    switch (tokens[1]){
-                        case "employee":
-                            if(!accesses.isAddEmployee()){
-                                return confirmMessage(request);
-                            }
-                            sqlHandler.addEmployee(sqlHandler.getMy_employee_id(), Integer.parseInt(tokens[2]),
-                                    Integer.parseInt(tokens[3]), Double.parseDouble(tokens[4]));
-                            return SUCCESSFUL_OPERATION;
-                        case "user":
-                            if(!accesses.isAddUser()){
-                                return confirmMessage(request);
-                            }
-                            sqlHandler.addUser(tokens[2], tokens[3], 2, tokens[4]);
-                            return SUCCESSFUL_OPERATION;
-                        case "money":
-                            if(!accesses.isAddUser()){
-                                return  confirmMessage(request);
-                            }
-                    }
-            }
-        } catch (Exception e){
-            e.printStackTrace();
-            return WRONG_REQUEST;
-        }
-        return WRONG_REQUEST;
+
+        lastOperation = operation;
+        lastRequest = request;
+        return result;
     }
 
     private String getUserInfo(User user){
         Account account = sqlHandler.getAccount(user.getUser_id());
-        return "Accepted;" + "user_id " + user.getUser_id() + ";login "
+        return "Accepted;" + "my_user_id " + user.getUser_id() + ";login "
                 + user.getLogin() + ";type " + user.getUser_type() + ";"
                 + "name " + account.getName() + ";money " + account.getMoney() + ";";
     }
@@ -214,8 +217,12 @@ public class RequestParser {
         return "" + secureRandom.nextLong() + System.currentTimeMillis();
     }
 
+    private boolean checkSignature(String signature, int user_id){
+        return true;
+    }
+
     private String confirmMessage(String request){
-        lastCheckMessage = request + SEPARATOR + checkMessage();
-        return CONFIRM_ACCESS + SEPARATOR + lastCheckMessage;
+        lastCheckMessage = checkMessage();
+        return CONFIRM_ACCESS + SEPARATOR + request + SEPARATOR + lastCheckMessage;
     }
 }
