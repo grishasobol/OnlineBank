@@ -1,23 +1,28 @@
 package ru.ncedu.sobol.parser;
 
+import ru.ncedu.sobol.crud.AccountService;
+import ru.ncedu.sobol.crud.OpenKeyService;
 import ru.ncedu.sobol.essences.Account;
 import ru.ncedu.sobol.essences.User;
 import ru.ncedu.sobol.sql.SQLHandler;
+import ru.ncedu.sobol.sign.SignChecker;
 
 import java.util.List;
 
 import java.security.SecureRandom;
+
+import static java.lang.Math.*;
 
 /**
  * Created by Gregory on 08-Dec-16.
  */
 public class RequestParser {
 
-    private final static String WRONG_REQUEST = "wrongrequest";
-    private final static String CONFIRM_ACCESS = "confirmaccess";
+    private final static String WRONG_REQUEST = "wrong_request";
+    private final static String CONFIRM_ACCESS = "confirm_access";
     private final static String RESPONSE = "response";
-    private final static String SUCCESSFUL_OPERATION = "The operation done successfully";
-    private final static String NOT_CONFIRMED = "notconfirmed";
+    private final static String SUCCESSFUL_OPERATION = "The operation was done successfully";
+    private final static String NOT_CONFIRMED = "not_confirmed";
     private final static String SEPARATOR = ";";
     private final static int DEFAULT_USER_ACCESSES = 92;
 
@@ -74,7 +79,7 @@ public class RequestParser {
                             return Operations.DELETE_ALL;
                         case "my":
                             return Operations.DELETE_MY;
-                        case "user":
+                        case "id":
                             return Operations.DELETE_USER;
                         default:
                             return Operations.BAD_OPERATION;
@@ -91,9 +96,11 @@ public class RequestParser {
 
     public String parse(String request){
         String result = null;
-        String[] tokens = request.split(" ");
-        Operations operation = parseRequestToOperation(tokens);
+        String[] tokens = null;
+        Operations operation = null;
         try {
+            tokens = request.split(" ");
+            operation = parseRequestToOperation(tokens);
             switch (operation) {
                 case BAD_OPERATION:
                     result = WRONG_REQUEST;
@@ -103,17 +110,25 @@ public class RequestParser {
                         result = WRONG_REQUEST;
                         break;
                     }
-                    String signature = tokens[1];
-                    int user_id = Integer.parseInt(tokens[2]);
+//                    int wordIndex = request.lastIndexOf(" ");
+//                    int sigIndex = request.lastIndexOf(" ");
+//                    String signature = request.substring(wordIndex + 1, sigIndex);
+                        String signature = "";
+                    int user_id = Integer.parseInt(tokens[tokens.length - 1]);
                     if(!checkSignature(signature, user_id)) {
                         result = NOT_CONFIRMED;
                         break;
                     }
-                    Access access = new Access(sqlHandler.getEmployee(user_id).getAccesses());
-                    if(){
-
+                    Access access = null;
+                    if(sqlHandler.isEmployee(user_id)) {
+                        access = new Access(sqlHandler.getEmployee(user_id).getAccesses());
+                    } else {
+                        access = new Access("11010001010");
                     }
-
+                    if(!access.isPermitted(lastOperation)){
+                        result = NOT_CONFIRMED;
+                        break;
+                    }
                     tokens = lastRequest.split(" ");
                     switch (lastOperation) {
                         case BAD_OPERATION:
@@ -123,16 +138,16 @@ public class RequestParser {
                             result = WRONG_REQUEST;
                             break;
                         case INFO_USER:
-                            result = getUserInfo(sqlHandler.getUser(Integer.parseInt(tokens[2])));
+                            result = RESPONSE + getUserInfo(sqlHandler.getUser(Integer.parseInt(tokens[2])));
                             break;
                         case INFO_MY:
                             result = WRONG_REQUEST;
                             break;
                         case INFO_ALL:
                             List<User> allUsers = sqlHandler.getAllUsers();
-                            String response = "";
+                            String response = RESPONSE;
                             for (User user : allUsers) {
-                                response += getUserInfo(user) + "\n";
+                                response += getUserInfo(user);
                             }
                             result = response;
                             break;
@@ -169,7 +184,7 @@ public class RequestParser {
                     result = confirmMessage(request);
                     break;
                 case INFO_MY:
-                    result = getUserInfo(sqlHandler.getUser(this.my_user_id));
+                    result = RESPONSE + getUserInfo(sqlHandler.getUser(this.my_user_id));
                     break;
                 case INFO_ALL:
                     result = confirmMessage(request);
@@ -178,10 +193,14 @@ public class RequestParser {
                     result = confirmMessage(request);
                     break;
                 case ADD_USER:
-                    result = confirmMessage(request);
+                    sqlHandler.addUser(tokens[2], tokens[3], 2, tokens[4]);
+                    result = SUCCESSFUL_OPERATION;
                     break;
+//                    result = confirmMessage(request);
+//                    break;
                 case ADD_MONEY:
                     sqlHandler.addMoney(Integer.parseInt(tokens[2]), Double.parseDouble(tokens[3]));
+                    result = SUCCESSFUL_OPERATION;
                     break;
                 case DELETE_ALL:
                     result = confirmMessage(request);
@@ -208,16 +227,19 @@ public class RequestParser {
 
     private String getUserInfo(User user){
         Account account = sqlHandler.getAccount(user.getUser_id());
-        return "Accepted;" + "my_user_id " + user.getUser_id() + ";login "
-                + user.getLogin() + ";type " + user.getUser_type() + ";"
-                + "name " + account.getName() + ";money " + account.getMoney() + ";";
+        return  SEPARATOR + "my_user_id " + user.getUser_id()
+                + " login " + user.getLogin()
+                + " type " + user.getUser_type()
+                + " name " + account.getName()
+                + " money " + account.getMoney();
     }
 
     private String checkMessage(){
-        return "" + secureRandom.nextLong() + System.currentTimeMillis();
+        return "" + abs(secureRandom.nextLong()) + abs(System.currentTimeMillis());
     }
 
     private boolean checkSignature(String signature, int user_id){
+        //SignChecker signChecker = new SignChecker(OpenKeyService.getByAccount(AccountService.getByUser(user_id).getAccount_id()).getOpen_key().toCharArray());
         return true;
     }
 

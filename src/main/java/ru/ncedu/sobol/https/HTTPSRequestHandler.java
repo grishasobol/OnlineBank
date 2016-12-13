@@ -41,16 +41,16 @@ public class HTTPSRequestHandler extends Thread {
             System.out.println("Listen");
             String line;
 
-            RequestParser requestParser = new RequestParser(0);
+            RequestParser requestParser = new RequestParser(1);
 
             boolean lol = true;
 
             while(lol) {
                 line = bufferedReader.readLine();
-                System.out.println("Input: " + line);
+                System.out.println("Input:  " + line);
                 line = requestParser.parse(line);
+                System.out.println("Output: " + line);
                 printWriter.println(line);
-                printWriter.print("");
                 printWriter.flush();
             }
 

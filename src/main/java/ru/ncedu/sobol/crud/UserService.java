@@ -20,7 +20,8 @@ public class UserService {
     }
 
     static public User get(int id){
-        return em.find(User.class, id);
+        User user = em.find(User.class, id);
+        return user;
     }
 
     static public void delete(int id){
@@ -40,11 +41,9 @@ public class UserService {
     }
 
     static public void deleteAll(){
-        em.createQuery("DROP TABLE IF EXISTS employees\n" +
-                "DROP TABLE IF EXISTS actionhistory\n" +
-                "DROP TABLE IF EXISTS openkeys\n" +
-                "DROP TABLE IF EXISTS accounts\n" +
-                "DROP TABLE IF EXISTS users");
+        em.getTransaction().begin();
+        em.createQuery("DELETE FROM users");
+        em.getTransaction().commit();
     }
 
 }

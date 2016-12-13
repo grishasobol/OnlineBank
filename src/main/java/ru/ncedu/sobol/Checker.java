@@ -18,12 +18,10 @@ import ru.ncedu.sobol.sql.*;
  */
 public class Checker{
     public static void main(String[] args) throws InterruptedException {
-//        HTTPSServer httpsServer = new HTTPSServer(8000);
-//        Thread myThready = new Thread(httpsServer);
-//        myThready.start();
-//                myThready.join();
-
-        Access a = new Access(10);
+        HTTPSServer httpsServer = new HTTPSServer(8000);
+        Thread myThready = new Thread(httpsServer);
+        myThready.start();
+        myThready.join();
 
 //        SQLHandler sqlHandler = new SQLHandler();
 //        try {
